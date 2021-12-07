@@ -215,7 +215,17 @@ elif args.from_git:
     # update-prod-static with the Git upgrade process.  But it'll fail
     # safely; this seems like a worthwhile tradeoff to minimize downtime.
     logging.info("Building static assets...")
-    subprocess.check_call(["./tools/update-prod-static"], preexec_fn=su_to_zulip)
+    try:
+        subprocess.check_call(["./tools/update-prod-static"], preexec_fn=su_to_zulip)
+    except subprocess.CalledProcessError as e:
+        logging.exception(e, stack_info=True)
+        if IS_SERVER_UP:
+            logging.error("Building static assets failed; often this is caused by memory pressure.")
+            logging.error(
+                "The upgrade may succeed if you first stop the Zulip server (scripts/stop-server)."
+            )
+        sys.exit(1)
+
     logging.info("Caching Zulip Git version...")
     subprocess.check_call(["./tools/cache-zulip-git-version"], preexec_fn=su_to_zulip)
 else:
